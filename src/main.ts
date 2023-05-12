@@ -29,8 +29,8 @@ class SafeSDKPlugin {
 		WEB3_AUTH_CLIENT_ID: string,
 		chainId: string,
 		chain_rpc_target: string,
-		use_torus_evm: string,
-		use_metamask: string
+		use_torus_evm: boolean,
+		use_metamask: boolean
 	) {
 		this.web3_auth_client_id = WEB3_AUTH_CLIENT_ID;
 		this.chain_id = chainId;
@@ -141,5 +141,5 @@ const web3Auth =
 const rpc = `https://rpc.ankr.com/eth_goerli`;
 
 const safe = new SafeSDKPlugin();
-safe.init(web3Auth, '0x5');
-window.safeSDKPlugin = new SafeSDKPlugin();
+safe.init(web3Auth, '0x5', rpc, false, true);
+window.safeSDKPlugin = safe;
