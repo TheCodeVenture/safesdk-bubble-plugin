@@ -22,6 +22,8 @@ class SafeSDKPlugin {
 	chain_rpc_target: any;
 	use_torus_evm: any;
 	use_metamask: any;
+	sign_in_info: any;
+	user_info: any;
 
 	constructor() {}
 
@@ -95,7 +97,8 @@ class SafeSDKPlugin {
 	}
 
 	async signIn() {
-		await this.safeAuthKit.signIn();
+		this.sign_in_info = await this.safeAuthKit.signIn();
+		this.user_info = await this.safeAuthKit.getUserInfo();
 	}
 
 	async signOut() {
@@ -105,13 +108,12 @@ class SafeSDKPlugin {
 	async createTransaction(
 		destination: string,
 		amount: string,
-		safeAddress: any
+		safeAddress: string
 	) {
 		// Any address can be used. In this example you will use vitalik.eth
 		// const destination = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
-		const provider = new ethers.providers.Web3Provider(
-			this.safeAuthKit.getProvider()
-		);
+		const authKitProvider = this.safeAuthKit.getProvider();
+		const provider = new ethers.providers.Web3Provider(authKitProvider);
 		const signer = provider.getSigner();
 
 		const amountToSend = ethers.utils.parseUnits(amount, 'ether').toString();
@@ -132,9 +134,11 @@ class SafeSDKPlugin {
 			value: amountToSend,
 		};
 		// Create a Safe transaction with the provided parameters
-		await safeSDK.createTransaction({
+		const res = await safeSDK.createTransaction({
 			safeTransactionData,
 		});
+
+		return res;
 	}
 
 	async createSafe() {}
