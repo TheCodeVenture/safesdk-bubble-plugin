@@ -4,8 +4,6 @@ import { Web3AuthOptions } from '@web3auth/modal';
 import { OpenloginAdapter } from '@web3auth/openlogin-adapter';
 import { CHAIN_NAMESPACES, WALLET_ADAPTERS } from "@web3auth/base";
 
-console.log('HERE??');
-
 declare global {
   interface Window { ThirdwebSDK: any; safeAuthKit: any; }
 }
@@ -64,10 +62,10 @@ async function main() {
     txServiceUrl: 'https://safe-transaction-goerli.safe.global'
   })
 
-    console.log('safeAuthKit', safeAuthKit);
+  console.log('safeAuthKit', safeAuthKit);
 
-    window.ThirdwebSDK = ThirdwebSDK;
-    window.safeAuthKit = safeAuthKit;
+  window.ThirdwebSDK = ThirdwebSDK;
+  window.safeAuthKit = safeAuthKit;
 }
 
 main()

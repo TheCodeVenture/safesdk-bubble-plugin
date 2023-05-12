@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "deploy": "yarn build && npx thirdweb@latest upload dist"
+    "deploy": "yarn build && aws --profile skyline-digital s3 sync dist/assets s3://safesdk-bubble-plugin/assets --acl public-read"
   },
   "devDependencies": {
     "typescript": "^5.0.2",
