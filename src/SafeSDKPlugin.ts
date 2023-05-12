@@ -10,6 +10,7 @@ import Safe, { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 class SafeSDKPlugin {
   signer: any;
   safeAuthKit: any;
+  user: any;
 
 	async init(
 		web3AuthClientId: string,
@@ -72,11 +73,15 @@ class SafeSDKPlugin {
 	}
 
 	async signIn() {
-		await this.safeAuthKit.signIn();
+		const res = await this.safeAuthKit.signIn();
+		if (res) {
+			this.user = res;
+		}
 	}
 
 	async signOut() {
 		await this.safeAuthKit.signOut();
+		this.user = null;
 	}
 
 	async createTransaction(
