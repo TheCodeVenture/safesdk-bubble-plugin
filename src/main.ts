@@ -102,7 +102,11 @@ class SafeSDKPlugin {
 		await this.safeAuthKit.signOut();
 	}
 
-	async createTransaction(destination: string, amount: string) {
+	async createTransaction(
+		destination: string,
+		amount: string,
+		safeAddress: any
+	) {
 		// Any address can be used. In this example you will use vitalik.eth
 		// const destination = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 		const provider = new ethers.providers.Web3Provider(
@@ -128,7 +132,7 @@ class SafeSDKPlugin {
 			value: amountToSend,
 		};
 		// Create a Safe transaction with the provided parameters
-		const safeTransaction = await safeSDK.createTransaction({
+		await safeSDK.createTransaction({
 			safeTransactionData,
 		});
 	}
