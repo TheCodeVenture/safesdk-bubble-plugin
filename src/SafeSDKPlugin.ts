@@ -87,10 +87,11 @@ class SafeSDKPlugin {
 	async createTransaction(destination: string, amount: string) {
 		// Any address can be used. In this example you will use vitalik.eth
 		// const destination = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
-		const authKitProvider = this.safeAuthKit.getProvider();
-		const provider = new ethers.providers.Web3Provider(authKitProvider);
+		const provider = new ethers.providers.Web3Provider(
+			this.safeAuthKit.getProvider()
+		);
 		const safeAddress = this.user.safes[0];
-		console.log(safeAddress);
+
 		const signer = provider.getSigner();
 
 		const amountToSend = ethers.utils.parseUnits(amount, 'ether').toString();
@@ -100,14 +101,10 @@ class SafeSDKPlugin {
 			signerOrProvider: signer || provider,
 		});
 
-		console.log(ethAdapter);
-		console.log(safeAddress);
 		const safeSDK = await Safe.create({
 			ethAdapter,
 			safeAddress,
 		});
-
-		console.log(safeSDK);
 
 		const safeTransactionData: SafeTransactionDataPartial = {
 			to: destination,
@@ -119,12 +116,7 @@ class SafeSDKPlugin {
 			safeTransactionData,
 		});
 
-		const safeSDK2 = await safeSDK.connect({
-			ethAdapter,
-			safeAddress,
-		});
-
-		const txHash = await safeSDK2.getTransactionHash(res);
+		const txHash = await safeSDK.getTransactionHash(res);
 		return { res, txHash };
 	}
 
