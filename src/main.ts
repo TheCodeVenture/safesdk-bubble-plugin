@@ -2,8 +2,9 @@ import SafeSDKPlugin from './SafeSDKPlugin';
 
 declare global {
 	interface Window {
-		runDemo: () => void;
 		SafeSDKPlugin: any;
+    // Testing purposes
+		runDemo: () => void;
 		safeSdkPlugin: any;
 	}
 }
