@@ -10,7 +10,7 @@ import SafeApiKit from '@safe-global/api-kit';
 class SafeSDKPlugin {
 	signer: any;
 	safeAuthKit: any;
-	safes: any;
+	user: any;
 
 	async init(
 		web3AuthClientId: string,
@@ -74,12 +74,14 @@ class SafeSDKPlugin {
 
 	async signIn() {
 		const res = await this.safeAuthKit.signIn();
-		this.safes = res.safes;
+		this.user = res;
 		console.log('res', res);
+		return res;
 	}
 
 	async signOut() {
 		await this.safeAuthKit.signOut();
+		this.user = null;
 	}
 
 	async createTransaction(destination: string, amount: string) {
@@ -87,7 +89,7 @@ class SafeSDKPlugin {
 		// const destination = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 		const authKitProvider = this.safeAuthKit.getProvider();
 		const provider = new ethers.providers.Web3Provider(authKitProvider);
-		const safeAddress = this.safes[0];
+		const safeAddress = this.user.safes[0];
 		console.log(safeAddress);
 		const signer = provider.getSigner();
 
@@ -154,7 +156,7 @@ class SafeSDKPlugin {
 			ethAdapter: ethAdapter,
 		});
 
-		const address = this.safes[0];
+		const address = this.user.safes[0];
 		const pendingTransactions = await safeService.getPendingTransactions(
 			address
 		);
