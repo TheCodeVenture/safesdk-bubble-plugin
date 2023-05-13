@@ -72,7 +72,8 @@ class SafeSDKPlugin {
 	}
 
 	async signIn() {
-		await this.safeAuthKit.signIn();
+		const res = await this.safeAuthKit.signIn();
+    console.log('res', res);
 	}
 
 	async signOut() {
@@ -123,11 +124,15 @@ class SafeSDKPlugin {
 
     const owner = provider.getSigner();
 
+    console.log('owner', owner);
+
     if (!owner) {
       throw new Error('You are not connected to a wallet');
     }
 
-    console.log('owner', owner);
+    const address = await owner.getAddress();
+
+    console.log('address', address);
 
     const ethAdapter = new EthersAdapter({
       ethers,
@@ -136,10 +141,22 @@ class SafeSDKPlugin {
 
     const safeFactory = await SafeFactory.create({ ethAdapter: ethAdapter })
 
-    // const safeAddress = await safeFactory.deploySafe({
-    //   owners: [await owner.getAddress()],
-    //   threshold: 1,
-    // });
+    const safeAddress = await safeFactory.deploySafe({
+      safeAccountConfig: {
+        owners: [address],
+        threshold: 1,
+      },
+    });
+
+    console.log('safeAddress', safeAddress);
+  }
+
+  async getPrivateKey() {
+    const authKitProvider = this.safeAuthKit.getProvider();
+    const privateKey = await authKitProvider.request({
+        method: "private_key"
+    });
+    console.log('privateKey', privateKey);
   }
 }
 

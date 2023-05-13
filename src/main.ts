@@ -19,7 +19,7 @@ async function runDemo() {
 
   await safe.signIn();
 
-  await safe.createSafe();
+  // await safe.createSafe();
 }
 
 window.runDemo = runDemo;
