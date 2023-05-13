@@ -1,11 +1,10 @@
-import { log } from '@web3auth/base';
 import SafeSDKPlugin from './SafeSDKPlugin';
 
 declare global {
 	interface Window {
-		SafeSDKPlugin: any;
 		runDemo: () => void;
-		SafeDEMOSDKPlugin: any;
+		SafeSDKPlugin: any;
+		safeSdkPlugin: any;
 	}
 }
 
@@ -14,19 +13,19 @@ window.SafeSDKPlugin = SafeSDKPlugin;
 async function runDemo() {
 	const web3Auth =
 		'BIV9bqt-hKSorZvc6Nmng0XlHSc83Dt3kN_-aAH3_CAZPgK3BGTDRJCY7vW--1r9FyMEJh1yAuukv0eOlZk7NMk';
-	const rpc = `https://rpc.ankr.com/eth_goerli`;
 
-	const safe = new SafeSDKPlugin();
+	const safeSdkPlugin = new SafeSDKPlugin({ web3AuthClientId: web3Auth });
 
-	await safe.init(web3Auth, '0x5', rpc);
+	await safeSdkPlugin.initSafeAuthKit();
 
-	await safe.signIn();
+	await safeSdkPlugin.signIn();
 
-	window.SafeDEMOSDKPlugin = safe;
+	// await safeSdkPlugin.setConnectedSafeAddress(
+	// 	'0x8e5a8d1027bE5Ab455fDE0a56753756604B8A41a'
+	// );
 
-	await safe.setConnectedSafeAddress(
-		'0x8e5a8d1027bE5Ab455fDE0a56753756604B8A41a'
-	);
+	window.safeSdkPlugin = safeSdkPlugin;
+
 	// await safe.createSafe();
 	// const resTx = await safe.createTransaction(
 	// 	'0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',

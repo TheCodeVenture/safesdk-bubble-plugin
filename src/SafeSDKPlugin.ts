@@ -6,7 +6,7 @@ import {
 import { SafeAuthKit, Web3AuthModalPack } from '@safe-global/auth-kit';
 import { Web3AuthOptions } from '@web3auth/modal';
 import { OpenloginAdapter } from '@web3auth/openlogin-adapter';
-import { CHAIN_NAMESPACES, WALLET_ADAPTERS, log } from '@web3auth/base';
+import { CHAIN_NAMESPACES, WALLET_ADAPTERS } from '@web3auth/base';
 import Safe, { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 import SafeApiKit, {
 	AllTransactionsListResponse,
@@ -16,7 +16,6 @@ import SafeApiKit, {
 interface Chains {
   [key: string]: {
     chainId: string;
-    rpcUrl: string;
     safeTxServiceUrl: string;
   };
 }
@@ -43,45 +42,54 @@ enum Theme {
   DARK = 'dark',
 }
 
+interface SafeSDKPluginOptions {
+  web3AuthClientId: string;
+  chainId?: string;
+  customRpcUrl?: string;
+  web3AuthNetwork?: any;
+  loginMethods?: LoginMethods[];
+  theme?: Theme;
+}
 
 class SafeSDKPlugin {
-	signer: any;
 	safeAuthKit: any;
-	user: any;
 	connectedSafeAddress: any;
   chains: Chains = {
     '1': {
       chainId: '0x1',
-      rpcUrl: 'https://mainnet.infura.io/v3/3d8a7f0e7d9a4b0e8b2b2b3f0b0b0b0b',
       safeTxServiceUrl: 'https://safe-transaction.mainnet.gnosis.io',
     },
     '4': {
       chainId: '0x4',
-      rpcUrl: 'https://rinkeby.infura.io/v3/3d8a7f0e7d9a4b0e8b2b2b3f0b0b0b0b',
       safeTxServiceUrl: 'https://safe-transaction.rinkeby.gnosis.io',
     },
     '5': {
       chainId: '0x5',
-      rpcUrl: 'https://goerli.infura.io/v3/3d8a7f0e7d9a4b0e8b2b2b3f0b0b0b0b',
       safeTxServiceUrl: 'https://safe-transaction.goerli.gnosis.io',
     },
   };
   selectedChainId: string;
+  web3AuthModalPack: any;
 
-	async init(
-		web3AuthClientId: string,
-		chainId: string,
-    web3AuthNetwork: any = 'testnet',
-    loginMethods: LoginMethods[] = [
+	constructor({
+		web3AuthClientId,
+		chainId = '5',
+    customRpcUrl,
+    web3AuthNetwork = 'testnet',
+    loginMethods = [
       LoginMethods.GOOGLE,
       LoginMethods.TWITTER,
       LoginMethods.FACEBOOK,
     ],
-    theme: Theme = Theme.DARK,
-	) {
+    theme = Theme.DARK,
+  }: SafeSDKPluginOptions) {
     if (!this.chains[chainId]) {
       throw new Error('Network not supported');
     }
+
+    this.selectedChainId = chainId;
+
+    console.log('this.chains[chainId]', this.chains[chainId]);
 
     if (loginMethods.length === 0) {
       throw new Error('At least one login method must be provided');
@@ -100,14 +108,15 @@ class SafeSDKPlugin {
 			chainConfig: {
 				chainNamespace: CHAIN_NAMESPACES.EIP155,
 				chainId: this.chains[chainId].chainId,
-				// https://chainlist.org/
-				rpcTarget: this.chains[chainId].rpcUrl,
+        ...(customRpcUrl && { rpcUrl: customRpcUrl }),
 			},
 			uiConfig: {
 				theme: theme,
 				loginMethodsOrder: loginMethods,
 			},
 		};
+
+    console.log('options', options);
 
 		// https://web3auth.io/docs/sdk/web/modal/initialize#configuring-adapters
 		const modalConfig = {
@@ -131,22 +140,25 @@ class SafeSDKPlugin {
 			},
 		});
 
-		const pack = new Web3AuthModalPack(
+		this.web3AuthModalPack = new Web3AuthModalPack(
 			options,
 			[openloginAdapter],
 			modalConfig
 		);
-
-		this.safeAuthKit = await SafeAuthKit.init(pack, {
-			txServiceUrl: this.chains[chainId].safeTxServiceUrl,
-		});
-
-    this.selectedChainId = chainId;
 	}
+
+  async initSafeAuthKit() {
+    if (!this.selectedChainId) {
+      throw new Error('Chain ID not set');
+    }
+    
+    this.safeAuthKit = await SafeAuthKit.init(this.web3AuthModalPack, {
+			txServiceUrl: this.chains[this.selectedChainId].safeTxServiceUrl,
+		});
+  }
 
 	async signIn() {
 		const res = await this.safeAuthKit.signIn();
-		this.user = res;
 		console.log('res', res);
 		if (res.safes.length > 0) {
 			this.connectedSafeAddress = res.safes[0];
@@ -156,7 +168,6 @@ class SafeSDKPlugin {
 
 	async signOut() {
 		await this.safeAuthKit.signOut();
-		this.user = null;
 	}
 
 	getConnectedSafeAddress() {
@@ -228,6 +239,9 @@ class SafeSDKPlugin {
 		const safeAddress = this.connectedSafeAddress;
 
 		const signer = provider.getSigner();
+
+		const address = await signer.getAddress();
+
 		const ethAdapter = new EthersAdapter({
 			ethers,
 			signerOrProvider: signer || provider,
@@ -248,7 +262,7 @@ class SafeSDKPlugin {
 			safeAddress,
 			safeTransactionData: safeTransaction.data,
 			safeTxHash,
-			senderAddress: this.user.eoa,
+			senderAddress: address,
 			senderSignature: senderSignature.data,
 		});
 	}
