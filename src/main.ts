@@ -5,7 +5,8 @@ import { SafeAuthKit, Web3AuthModalPack } from '@safe-global/auth-kit';
 import { Web3AuthOptions } from '@web3auth/modal';
 import { OpenloginAdapter } from '@web3auth/openlogin-adapter';
 import { CHAIN_NAMESPACES, WALLET_ADAPTERS } from '@web3auth/base';
-import Safe, { EthersAdapter } from '@safe-global/protocol-kit';
+import Safe, { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
+import SafeApiKit from '@safe-global/api-kit';
 
 declare global {
 	interface Window {
@@ -24,6 +25,7 @@ class SafeSDKPlugin {
 	use_metamask: any;
 	sign_in_info: any;
 	user_info: any;
+	safe_sdk_owner1: any;
 
 	constructor() {}
 
@@ -105,15 +107,13 @@ class SafeSDKPlugin {
 		await this.safeAuthKit.signOut();
 	}
 
-	async createTransaction(
-		destination: string,
-		amount: string,
-		safeAddress: string
-	) {
+	async createTransaction(destination: string, amount: string) {
 		// Any address can be used. In this example you will use vitalik.eth
 		// const destination = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 		const authKitProvider = this.safeAuthKit.getProvider();
 		const provider = new ethers.providers.Web3Provider(authKitProvider);
+		const safeAddress = this.sign_in_info.safes[0];
+		console.log(safeAddress);
 		const signer = provider.getSigner();
 
 		const amountToSend = ethers.utils.parseUnits(amount, 'ether').toString();
@@ -123,10 +123,14 @@ class SafeSDKPlugin {
 			signerOrProvider: signer || provider,
 		});
 
+		console.log(ethAdapter);
+		console.log(safeAddress);
 		const safeSDK = await Safe.create({
 			ethAdapter,
 			safeAddress,
 		});
+
+		console.log(safeSDK);
 
 		const safeTransactionData: SafeTransactionDataPartial = {
 			to: destination,
@@ -138,10 +142,49 @@ class SafeSDKPlugin {
 			safeTransactionData,
 		});
 
-		return res;
+		const safeSDK2 = await safeSDK.connect({
+			ethAdapter,
+			safeAddress,
+		});
+
+		const txHash = await safeSDK2.getTransactionHash(res);
+		return { res, txHash };
 	}
 
-	async createSafe() {}
+	async signTransaction(tx: any, message: string) {
+		const provider = new ethers.providers.Web3Provider(
+			this.safeAuthKit.getProvider()
+		);
+		const signer = provider.getSigner();
+
+		await signer.sendTransaction(tx);
+		await signer.signTransaction(tx);
+		await signer.signMessage(message);
+	}
+
+	async getPendingTransactions() {
+		const provider = new ethers.providers.Web3Provider(
+			this.safeAuthKit.getProvider()
+		);
+		const signer = provider.getSigner();
+		// Sign transaction to verify that the transaction is coming from owner 1
+		const ethAdapter = new EthersAdapter({
+			ethers,
+			signerOrProvider: signer || provider,
+		});
+
+		const txServiceUrl = 'https://safe-transaction-goerli.safe.global';
+		const safeService = new SafeApiKit({
+			txServiceUrl,
+			ethAdapter: ethAdapter,
+		});
+
+		const address = this.sign_in_info.safes[0];
+		const pendingTransactions = await safeService.getPendingTransactions(
+			address
+		);
+		console.log(pendingTransactions);
+	}
 }
 
 const web3Auth =
