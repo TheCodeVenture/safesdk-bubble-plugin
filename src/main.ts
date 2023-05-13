@@ -20,13 +20,22 @@ async function runDemo() {
 
 	await safe.signIn();
 
+	console.log(safe.user);
 	// await safe.createSafe();
-	const resTx = await safe.createTransaction(
-		'0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-		'0.005'
-	);
+	// const resTx = await safe.createTransaction(
+	// 	'0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+	// 	'0.005'
+	// );
 
-	console.log(resTx);
+	// console.log(resTx);
+
+	// await safe.proposeTransaction(resTx.txHash, resTx.res);
+
+	// const t = await safe.getPendingTransactions();
+	// console.log(t);
+
+	// const res = await safe.executeTransaction(resTx.txHash);
+	// console.log(res);
 }
 
 window.runDemo = runDemo;

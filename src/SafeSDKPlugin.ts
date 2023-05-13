@@ -84,6 +84,12 @@ class SafeSDKPlugin {
 		this.user = null;
 	}
 
+	/**
+	 * We can create a transaction object by calling the method createTransaction in our Safe instance.
+	 * @param destination
+	 * @param amount
+	 * @returns
+	 */
 	async createTransaction(destination: string, amount: string) {
 		// Any address can be used. In this example you will use vitalik.eth
 		// const destination = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
@@ -120,17 +126,132 @@ class SafeSDKPlugin {
 		return { res, txHash };
 	}
 
-	async signTransaction(tx: any, message: string) {
+	/**
+	 * Once we have the Safe transaction object we can
+	 * share it with the other owners of the Safe so they can sign it.
+	 * To send the transaction to the Safe Transaction Service we need to
+	 * call the method proposeTransaction from the Safe API Kit instance
+	 *
+	 * @param safeTransaction
+	 * @param safeTxHash
+	 */
+	async proposeTransaction(safeTxHash: string, safeTransaction: any) {
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
-		const signer = provider.getSigner();
+		const safeAddress = this.user.safes[0];
 
-		await signer.sendTransaction(tx);
-		await signer.signTransaction(tx);
-		await signer.signMessage(message);
+		const signer = provider.getSigner();
+		const ethAdapter = new EthersAdapter({
+			ethers,
+			signerOrProvider: signer || provider,
+		});
+		const safeSDK = await Safe.create({
+			ethAdapter,
+			safeAddress,
+		});
+		const txServiceUrl = 'https://safe-transaction-goerli.safe.global';
+		const safeService = new SafeApiKit({
+			txServiceUrl,
+			ethAdapter: ethAdapter,
+		});
+		// Sign transaction to verify that the transaction is coming from owner 1
+		const senderSignature = await safeSDK.signTransactionHash(safeTxHash);
+
+		await safeService.proposeTransaction({
+			safeAddress,
+			safeTransactionData: safeTransaction.data,
+			safeTxHash,
+			senderAddress: this.user.eoa,
+			senderSignature: senderSignature.data,
+		});
 	}
 
+	/**
+	 * Anyone can execute the Safe transaction once it has the
+	 * required number of signatures. In this example, owner 1 will
+	 * execute the transaction and pay for the gas fees.
+	 */
+	async executeTransaction(safeTxHash: string) {
+		const provider = new ethers.providers.Web3Provider(
+			this.safeAuthKit.getProvider()
+		);
+
+		const safeAddress = this.user.safes[0];
+
+		const signer = provider.getSigner();
+		// Sign transaction to verify that the transaction is coming from owner 1
+		const ethAdapter = new EthersAdapter({
+			ethers,
+			signerOrProvider: signer || provider,
+		});
+
+		const txServiceUrl = 'https://safe-transaction-goerli.safe.global';
+		const safeService = new SafeApiKit({
+			txServiceUrl,
+			ethAdapter: ethAdapter,
+		});
+
+		const safeSDK = await Safe.create({
+			ethAdapter,
+			safeAddress,
+		});
+
+		const safeTransaction = await safeService.getTransaction(safeTxHash);
+		const isValidTx = await safeSDK.isValidTransaction(safeTransaction);
+		if (isValidTx) {
+			const executeTxResponse = await safeSDK.executeTransaction(
+				safeTransaction
+			);
+			const receipt =
+				executeTxResponse.transactionResponse &&
+				(await executeTxResponse.transactionResponse.wait());
+			return receipt;
+		}
+
+		return 'There is signatures missing';
+	}
+
+	/**
+	 * txHash The owners of the Safe can now sign the transaction obtained
+	 *  from the Safe Transaction Service by calling the method signTransactionHash
+	 * from the Protocol Kit to generate the signature and by calling the method confirmTransaction
+	 * from the Safe API Kit to add the signature to the service.
+	 */
+	async confirmTransaction(txHash: string) {
+		const provider = new ethers.providers.Web3Provider(
+			this.safeAuthKit.getProvider()
+		);
+
+		const safeAddress = this.user.safes[0];
+
+		const signer = provider.getSigner();
+		// Sign transaction to verify that the transaction is coming from owner 1
+		const ethAdapter = new EthersAdapter({
+			ethers,
+			signerOrProvider: signer || provider,
+		});
+
+		const txServiceUrl = 'https://safe-transaction-goerli.safe.global';
+		const safeService = new SafeApiKit({
+			txServiceUrl,
+			ethAdapter: ethAdapter,
+		});
+
+		const safeSDK = await Safe.create({
+			ethAdapter,
+			safeAddress,
+		});
+		let signature = await safeSDK.signTransactionHash(txHash);
+		await safeService.confirmTransaction(txHash, signature.data);
+	}
+
+	rejectTransaction(txHash: string) {}
+
+	/**
+	 *
+	 * @returns
+	 */
 	async getPendingTransactions() {
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
@@ -153,6 +274,7 @@ class SafeSDKPlugin {
 			address
 		);
 		console.log(pendingTransactions);
+		return pendingTransactions;
 	}
 
 	async createSafe() {
