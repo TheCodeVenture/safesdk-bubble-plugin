@@ -1,71 +1,47 @@
-import { ThirdwebSDK } from "@thirdweb-dev/sdk";
-import { SafeAuthKit, Web3AuthModalPack } from '@safe-global/auth-kit';
-import { Web3AuthOptions } from '@web3auth/modal';
-import { OpenloginAdapter } from '@web3auth/openlogin-adapter';
-import { CHAIN_NAMESPACES, WALLET_ADAPTERS } from "@web3auth/base";
+import { log } from '@web3auth/base';
+import SafeSDKPlugin from './SafeSDKPlugin';
 
 declare global {
-  interface Window { ThirdwebSDK: any; safeAuthKit: any; }
+	interface Window {
+		SafeSDKPlugin: any;
+		runDemo: () => void;
+		SafeDEMOSDKPlugin: any;
+	}
 }
 
-async function main() {
-  // https://dashboard.web3auth.io/
-  const WEB3_AUTH_CLIENT_ID="BIV9bqt-hKSorZvc6Nmng0XlHSc83Dt3kN_-aAH3_CAZPgK3BGTDRJCY7vW--1r9FyMEJh1yAuukv0eOlZk7NMk"
+window.SafeSDKPlugin = SafeSDKPlugin;
 
-  // https://web3auth.io/docs/sdk/web/modal/initialize#arguments
-  const options: Web3AuthOptions = {
-    clientId: WEB3_AUTH_CLIENT_ID,
-    web3AuthNetwork: 'testnet',
-    chainConfig: {
-      chainNamespace: CHAIN_NAMESPACES.EIP155,
-      chainId: '0x5',
-      // https://chainlist.org/
-      rpcTarget: `https://rpc.ankr.com/eth_goerli`
-    },
-      uiConfig: {
-        theme: 'dark',
-        loginMethodsOrder: ['google', 'facebook']
-      }
-  }
+async function runDemo() {
+	const web3Auth =
+		'BIV9bqt-hKSorZvc6Nmng0XlHSc83Dt3kN_-aAH3_CAZPgK3BGTDRJCY7vW--1r9FyMEJh1yAuukv0eOlZk7NMk';
+	const rpc = `https://rpc.ankr.com/eth_goerli`;
 
-  // https://web3auth.io/docs/sdk/web/modal/initialize#configuring-adapters
-  const modalConfig = {
-    [WALLET_ADAPTERS.TORUS_EVM]: {
-      label: 'torus',
-      showOnModal: false
-    },
-    [WALLET_ADAPTERS.METAMASK]: {
-      label: 'metamask',
-      showOnDesktop: true,
-      showOnMobile: false
-    }
-  }
+	const safe = new SafeSDKPlugin();
 
-  // https://web3auth.io/docs/sdk/web/modal/whitelabel#whitelabeling-while-modal-initialization
-  const openloginAdapter = new OpenloginAdapter({
-    loginSettings: {
-      mfaLevel: 'mandatory'
-    },
-    adapterSettings: {
-      uxMode: 'popup',
-      whiteLabel: {
-        name: 'Safe'
-      }
-    }
-  })
+	await safe.init(web3Auth, '0x5', rpc);
 
-  const pack = new Web3AuthModalPack(options, [openloginAdapter], modalConfig)
+	await safe.signIn();
 
-  console.log('pack', pack);
+	window.SafeDEMOSDKPlugin = safe;
 
-  const safeAuthKit = await SafeAuthKit.init(pack, {
-    txServiceUrl: 'https://safe-transaction-goerli.safe.global'
-  })
+	await safe.setConnectedSafeAddress(
+		'0x8e5a8d1027bE5Ab455fDE0a56753756604B8A41a'
+	);
+	// await safe.createSafe();
+	// const resTx = await safe.createTransaction(
+	// 	'0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+	// 	'0.005'
+	// );
 
-  console.log('safeAuthKit', safeAuthKit);
+	// console.log(resTx);
 
-  window.ThirdwebSDK = ThirdwebSDK;
-  window.safeAuthKit = safeAuthKit;
+	// await safe.proposeTransaction(resTx.txHash, resTx.res);
+
+	// const t = await safe.getPendingTransactions();
+	// console.log(t);
+
+	// const res = await safe.executeTransaction(resTx.txHash);
+	// console.log(res);
 }
 
-main()
+window.runDemo = runDemo;
