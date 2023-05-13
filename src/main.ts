@@ -5,6 +5,7 @@ declare global {
 	interface Window {
 		SafeSDKPlugin: any;
 		runDemo: () => void;
+		SafeDEMOSDKPlugin: any;
 	}
 }
 
@@ -21,6 +22,11 @@ async function runDemo() {
 
 	await safe.signIn();
 
+	window.SafeDEMOSDKPlugin = safe;
+
+	await safe.setConnectedSafeAddress(
+		'0x8e5a8d1027bE5Ab455fDE0a56753756604B8A41a'
+	);
 	// await safe.createSafe();
 	// const resTx = await safe.createTransaction(
 	// 	'0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
@@ -31,8 +37,8 @@ async function runDemo() {
 
 	// await safe.proposeTransaction(resTx.txHash, resTx.res);
 
-	const t = await safe.getPendingTransactions();
-	console.log(t);
+	// const t = await safe.getPendingTransactions();
+	// console.log(t);
 
 	// const res = await safe.executeTransaction(resTx.txHash);
 	// console.log(res);

@@ -1,16 +1,25 @@
 import { ethers } from 'ethers';
-import { SafeMultisigTransactionResponse, SafeTransactionDataPartial } from '@safe-global/safe-core-sdk-types';
+import {
+	SafeMultisigTransactionResponse,
+	SafeTransactionDataPartial,
+} from '@safe-global/safe-core-sdk-types';
 import { SafeAuthKit, Web3AuthModalPack } from '@safe-global/auth-kit';
 import { Web3AuthOptions } from '@web3auth/modal';
 import { OpenloginAdapter } from '@web3auth/openlogin-adapter';
 import { CHAIN_NAMESPACES, WALLET_ADAPTERS, log } from '@web3auth/base';
 import Safe, { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
-import SafeApiKit, { AllTransactionsListResponse, OwnerResponse, SafeInfoResponse, SafeMultisigTransactionListResponse } from '@safe-global/api-kit';
+import SafeApiKit, {
+	AllTransactionsListResponse,
+	OwnerResponse,
+	SafeInfoResponse,
+	SafeMultisigTransactionListResponse,
+} from '@safe-global/api-kit';
 
 class SafeSDKPlugin {
 	signer: any;
 	safeAuthKit: any;
 	user: any;
+	connectedSafeAddress: any;
 
 	async init(
 		web3AuthClientId: string,
@@ -76,12 +85,28 @@ class SafeSDKPlugin {
 		const res = await this.safeAuthKit.signIn();
 		this.user = res;
 		console.log('res', res);
+		if (res.safes.length > 0) {
+			this.connectedSafeAddress = res.safes[0];
+		}
 		return res;
 	}
 
 	async signOut() {
 		await this.safeAuthKit.signOut();
 		this.user = null;
+	}
+
+	getConnectedSafeAddress() {
+		return this.connectedSafeAddress;
+	}
+
+	async setConnectedSafeAddress(safeAddress: string) {
+		const safes = await this.getAllSafes();
+		if (safes.indexOf(safeAddress) !== -1) {
+			this.connectedSafeAddress = safeAddress;
+		} else {
+			console.log('Safe wallet address not found');
+		}
 	}
 
 	/**
@@ -96,7 +121,7 @@ class SafeSDKPlugin {
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
-		const safeAddress = this.user.safes[1];
+		const safeAddress = this.connectedSafeAddress;
 
 		const signer = provider.getSigner();
 
@@ -139,7 +164,7 @@ class SafeSDKPlugin {
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
-		const safeAddress = this.user.safes[1];
+		const safeAddress = this.connectedSafeAddress;
 
 		const signer = provider.getSigner();
 		const ethAdapter = new EthersAdapter({
@@ -177,7 +202,7 @@ class SafeSDKPlugin {
 			this.safeAuthKit.getProvider()
 		);
 
-		const safeAddress = this.user.safes[0];
+		const safeAddress = this.connectedSafeAddress;
 
 		const signer = provider.getSigner();
 		// Sign transaction to verify that the transaction is coming from owner 1
@@ -223,7 +248,7 @@ class SafeSDKPlugin {
 			this.safeAuthKit.getProvider()
 		);
 
-		const safeAddress = this.user.safes[0];
+		const safeAddress = this.connectedSafeAddress;
 
 		const signer = provider.getSigner();
 		// Sign transaction to verify that the transaction is coming from owner 1
@@ -252,7 +277,8 @@ class SafeSDKPlugin {
 	 *
 	 * @returns
 	 */
-	async getPendingTransactions(safeAddress: any) {
+	async getPendingTransactions() {
+		const safeAddress = this.connectedSafeAddress;
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
@@ -269,14 +295,8 @@ class SafeSDKPlugin {
 			ethAdapter: ethAdapter,
 		});
 
-		// TODO: this should getAllSafes in case this.user is not fetched yet
-		const address = this.user.safes.find((address: any) => address === safeAddress);
-		if(!address) {
-			throw new Error('This wallet does not exist')
-		}
-
 		const pendingTransactions = await safeService.getPendingTransactions(
-			address
+			safeAddress
 		);
 		console.log(pendingTransactions);
 		return pendingTransactions;
@@ -293,8 +313,8 @@ class SafeSDKPlugin {
 			throw new Error('You are not connected to a wallet');
 		}
 
-		if (threshold > (owners.length + 1) || threshold <= 0) {
-			throw new Error('Threshold is not valid')
+		if (threshold > owners.length + 1 || threshold <= 0) {
+			throw new Error('Threshold is not valid');
 		}
 
 		const address = await owner.getAddress();
@@ -342,20 +362,20 @@ class SafeSDKPlugin {
 			ethers,
 			signerOrProvider: owner,
 		});
-		
+
 		const safeService = new SafeApiKit({
 			txServiceUrl: 'https://safe-transaction-goerli.safe.global',
-			ethAdapter
-		  })
+			ethAdapter,
+		});
 
-		const safes: OwnerResponse = await safeService.getSafesByOwner(address)
+		const safes: OwnerResponse = await safeService.getSafesByOwner(address);
 		console.log(safes);
 
-		return safes;
+		return safes.safes;
 	}
 
-	async getAllTransactions(safeAddress: any) {
-
+	async getAllTransactions() {
+		const safeAddress = this.connectedSafeAddress;
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
@@ -366,32 +386,24 @@ class SafeSDKPlugin {
 			throw new Error('You are not connected to a wallet');
 		}
 
-		// TODO: this should getAllSafes in case this.user is not fetched yet
-		const address = this.user.safes.find((address: any) => address === safeAddress);
-		if(!address) {
-			throw new Error('This wallet does not exist')
-		}
-
 		const ethAdapter = new EthersAdapter({
 			ethers,
 			signerOrProvider: owner,
 		});
-		
+
 		const safeService = new SafeApiKit({
 			txServiceUrl: 'https://safe-transaction-goerli.safe.global',
-			ethAdapter
-		  })
+			ethAdapter,
+		});
 
-		const allTxs: AllTransactionsListResponse = await safeService.getAllTransactions(
-			address
-		  )
+		const allTxs: AllTransactionsListResponse =
+			await safeService.getAllTransactions(safeAddress);
 
 		console.log('allTxs', allTxs);
 		return allTxs;
 	}
 
-	async getTransaction (safeTxHash: any) {
-
+	async getTransaction(safeTxHash: any) {
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
@@ -406,17 +418,17 @@ class SafeSDKPlugin {
 			ethers,
 			signerOrProvider: owner,
 		});
-		
+
 		const safeService = new SafeApiKit({
 			txServiceUrl: 'https://safe-transaction-goerli.safe.global',
-			ethAdapter
-		})
+			ethAdapter,
+		});
 
-		const tx: SafeMultisigTransactionResponse = await safeService.getTransaction(safeTxHash)
+		const tx: SafeMultisigTransactionResponse =
+			await safeService.getTransaction(safeTxHash);
 
 		console.log('tx', tx);
 		return tx;
-		
 	}
 }
 
