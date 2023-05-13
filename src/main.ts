@@ -1,3 +1,4 @@
+import { log } from '@web3auth/base';
 import SafeSDKPlugin from './SafeSDKPlugin';
 
 declare global {
@@ -20,22 +21,9 @@ async function runDemo() {
 
 	await safe.signIn();
 
-	console.log(safe.user);
-	// await safe.createSafe();
-	// const resTx = await safe.createTransaction(
-	// 	'0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-	// 	'0.005'
-	// );
+  await safe.getAllSafes();
 
-	// console.log(resTx);
-
-	// await safe.proposeTransaction(resTx.txHash, resTx.res);
-
-	// const t = await safe.getPendingTransactions();
-	// console.log(t);
-
-	// const res = await safe.executeTransaction(resTx.txHash);
-	// console.log(res);
+  await safe.getAllTransactions('0xAAA983ce7D9B0DA73957A6a8C5B877703E3fCe27');
 }
 
 window.runDemo = runDemo;

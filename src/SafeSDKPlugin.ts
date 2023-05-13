@@ -1,11 +1,11 @@
 import { ethers } from 'ethers';
-import { SafeTransactionDataPartial } from '@safe-global/safe-core-sdk-types';
+import { SafeMultisigTransactionResponse, SafeTransactionDataPartial } from '@safe-global/safe-core-sdk-types';
 import { SafeAuthKit, Web3AuthModalPack } from '@safe-global/auth-kit';
 import { Web3AuthOptions } from '@web3auth/modal';
 import { OpenloginAdapter } from '@web3auth/openlogin-adapter';
-import { CHAIN_NAMESPACES, WALLET_ADAPTERS } from '@web3auth/base';
+import { CHAIN_NAMESPACES, WALLET_ADAPTERS, log } from '@web3auth/base';
 import Safe, { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
-import SafeApiKit from '@safe-global/api-kit';
+import SafeApiKit, { AllTransactionsListResponse, OwnerResponse, SafeInfoResponse, SafeMultisigTransactionListResponse } from '@safe-global/api-kit';
 
 class SafeSDKPlugin {
 	signer: any;
@@ -252,7 +252,7 @@ class SafeSDKPlugin {
 	 *
 	 * @returns
 	 */
-	async getPendingTransactions() {
+	async getPendingTransactions(safeAddress: any) {
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
@@ -269,7 +269,12 @@ class SafeSDKPlugin {
 			ethAdapter: ethAdapter,
 		});
 
-		const address = this.user.safes[0];
+		// TODO: this should getAllSafes in case this.user is not fetched yet
+		const address = this.user.safes.find((address: any) => address === safeAddress);
+		if(!address) {
+			throw new Error('This wallet does not exist')
+		}
+
 		const pendingTransactions = await safeService.getPendingTransactions(
 			address
 		);
@@ -277,22 +282,22 @@ class SafeSDKPlugin {
 		return pendingTransactions;
 	}
 
-	async createSafe() {
+	async createSafe(owners: string[], threshold: number) {
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
 
 		const owner = provider.getSigner();
 
-		console.log('owner', owner);
-
 		if (!owner) {
 			throw new Error('You are not connected to a wallet');
 		}
 
-		const address = await owner.getAddress();
+		if (threshold > (owners.length + 1) || threshold <= 0) {
+			throw new Error('Threshold is not valid')
+		}
 
-		console.log('address', address);
+		const address = await owner.getAddress();
 
 		const ethAdapter = new EthersAdapter({
 			ethers,
@@ -303,12 +308,13 @@ class SafeSDKPlugin {
 
 		const safeAddress = await safeFactory.deploySafe({
 			safeAccountConfig: {
-				owners: [address],
-				threshold: 1,
+				owners: [...owners, address],
+				threshold,
 			},
 		});
 
 		console.log('safeAddress', safeAddress);
+		return safeAddress;
 	}
 
 	async getPrivateKey() {
@@ -317,6 +323,100 @@ class SafeSDKPlugin {
 			method: 'private_key',
 		});
 		console.log('privateKey', privateKey);
+	}
+
+	async getAllSafes() {
+		const provider = new ethers.providers.Web3Provider(
+			this.safeAuthKit.getProvider()
+		);
+
+		const owner = provider.getSigner();
+
+		if (!owner) {
+			throw new Error('You are not connected to a wallet');
+		}
+
+		const address = await owner.getAddress();
+
+		const ethAdapter = new EthersAdapter({
+			ethers,
+			signerOrProvider: owner,
+		});
+		
+		const safeService = new SafeApiKit({
+			txServiceUrl: 'https://safe-transaction-goerli.safe.global',
+			ethAdapter
+		  })
+
+		const safes: OwnerResponse = await safeService.getSafesByOwner(address)
+		console.log(safes);
+
+		return safes;
+	}
+
+	async getAllTransactions(safeAddress: any) {
+
+		const provider = new ethers.providers.Web3Provider(
+			this.safeAuthKit.getProvider()
+		);
+
+		const owner = provider.getSigner();
+
+		if (!owner) {
+			throw new Error('You are not connected to a wallet');
+		}
+
+		// TODO: this should getAllSafes in case this.user is not fetched yet
+		const address = this.user.safes.find((address: any) => address === safeAddress);
+		if(!address) {
+			throw new Error('This wallet does not exist')
+		}
+
+		const ethAdapter = new EthersAdapter({
+			ethers,
+			signerOrProvider: owner,
+		});
+		
+		const safeService = new SafeApiKit({
+			txServiceUrl: 'https://safe-transaction-goerli.safe.global',
+			ethAdapter
+		  })
+
+		const allTxs: AllTransactionsListResponse = await safeService.getAllTransactions(
+			address
+		  )
+
+		console.log('allTxs', allTxs);
+		return allTxs;
+	}
+
+	async getTransaction (safeTxHash: any) {
+
+		const provider = new ethers.providers.Web3Provider(
+			this.safeAuthKit.getProvider()
+		);
+
+		const owner = provider.getSigner();
+
+		if (!owner) {
+			throw new Error('You are not connected to a wallet');
+		}
+
+		const ethAdapter = new EthersAdapter({
+			ethers,
+			signerOrProvider: owner,
+		});
+		
+		const safeService = new SafeApiKit({
+			txServiceUrl: 'https://safe-transaction-goerli.safe.global',
+			ethAdapter
+		})
+
+		const tx: SafeMultisigTransactionResponse = await safeService.getTransaction(safeTxHash)
+
+		console.log('tx', tx);
+		return tx;
+		
 	}
 }
 
