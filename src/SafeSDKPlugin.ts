@@ -96,7 +96,7 @@ class SafeSDKPlugin {
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
-		const safeAddress = this.user.safes[0];
+		const safeAddress = this.user.safes[1];
 
 		const signer = provider.getSigner();
 
@@ -139,7 +139,7 @@ class SafeSDKPlugin {
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
-		const safeAddress = this.user.safes[0];
+		const safeAddress = this.user.safes[1];
 
 		const signer = provider.getSigner();
 		const ethAdapter = new EthersAdapter({
