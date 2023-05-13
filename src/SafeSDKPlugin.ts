@@ -59,9 +59,9 @@ class SafeSDKPlugin {
       chainId: '0x1',
       safeTxServiceUrl: 'https://safe-transaction.mainnet.gnosis.io',
     },
-    '4': {
-      chainId: '0x4',
-      safeTxServiceUrl: 'https://safe-transaction.rinkeby.gnosis.io',
+    '100': {
+      chainId: '0x64',
+      safeTxServiceUrl: 'https://safe-transaction.xdai.gnosis.io',
     },
     '5': {
       chainId: '0x5',
