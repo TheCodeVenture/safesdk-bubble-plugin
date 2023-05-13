@@ -6,54 +6,120 @@ import {
 import { SafeAuthKit, Web3AuthModalPack } from '@safe-global/auth-kit';
 import { Web3AuthOptions } from '@web3auth/modal';
 import { OpenloginAdapter } from '@web3auth/openlogin-adapter';
-import { CHAIN_NAMESPACES, WALLET_ADAPTERS, log } from '@web3auth/base';
+import { CHAIN_NAMESPACES, WALLET_ADAPTERS } from '@web3auth/base';
 import Safe, { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 import SafeApiKit, {
 	AllTransactionsListResponse,
 	OwnerResponse,
-	SafeInfoResponse,
-	SafeMultisigTransactionListResponse,
 } from '@safe-global/api-kit';
 
-class SafeSDKPlugin {
-	signer: any;
-	safeAuthKit: any;
-	user: any;
-	connectedSafeAddress: any;
+interface Chains {
+  [key: string]: {
+    chainId: string;
+    safeTxServiceUrl: string;
+  };
+}
 
-	async init(
-		web3AuthClientId: string,
-		chainId: string,
-		rpcUrl: string
-		// use_torus_evm: boolean,
-		// use_metamask: boolean
-	) {
+enum LoginMethods {
+  GOOGLE = 'google',
+  FACEBOOK = 'facebook',
+  TWITTER = 'twitter',
+  REDDIT = 'reddit',
+  DISCORD = 'discord',
+  TWITCH = 'twitch',
+  APPLE = 'apple',
+  LINE = 'line',
+  GITHUB = 'github',
+  KAKAO = 'kakao',
+  LINKEDIN = 'linkedin',
+  WEIBO = 'weibo',
+  WECHAT = 'wechat',
+  EMAIL_PASSWORDLESS = 'email_passwordless',
+}
+
+enum Theme {
+  LIGHT = 'light',
+  DARK = 'dark',
+}
+
+interface SafeSDKPluginOptions {
+  web3AuthClientId: string;
+  chainId?: string;
+  customRpcUrl?: string;
+  web3AuthNetwork?: any;
+  loginMethods?: LoginMethods[];
+  theme?: Theme;
+}
+
+class SafeSDKPlugin {
+	safeAuthKit: any;
+	connectedSafeAddress: any;
+  chains: Chains = {
+    '1': {
+      chainId: '0x1',
+      safeTxServiceUrl: 'https://safe-transaction.mainnet.gnosis.io',
+    },
+    '100': {
+      chainId: '0x64',
+      safeTxServiceUrl: 'https://safe-transaction.xdai.gnosis.io',
+    },
+    '5': {
+      chainId: '0x5',
+      safeTxServiceUrl: 'https://safe-transaction.goerli.gnosis.io',
+    },
+  };
+  selectedChainId: string;
+  web3AuthModalPack: any;
+
+	constructor({
+		web3AuthClientId,
+		chainId = '5',
+    customRpcUrl,
+    web3AuthNetwork = 'testnet',
+    loginMethods = [
+      LoginMethods.GOOGLE,
+      LoginMethods.TWITTER,
+      LoginMethods.FACEBOOK,
+    ],
+    theme = Theme.DARK,
+  }: SafeSDKPluginOptions) {
+    if (!this.chains[chainId]) {
+      throw new Error('Network not supported');
+    }
+
+    this.selectedChainId = chainId;
+
+    if (loginMethods.length === 0) {
+      throw new Error('At least one login method must be provided');
+    }
+
+    loginMethods.forEach((loginMethod) => {
+      if (!Object.values(LoginMethods).includes(loginMethod)) {
+        throw new Error(`Login method ${loginMethod} is not supported`);
+      }
+    });
+
 		// https://web3auth.io/docs/sdk/web/modal/initialize#arguments
 		const options: Web3AuthOptions = {
 			clientId: web3AuthClientId,
-			web3AuthNetwork: 'testnet',
+			web3AuthNetwork: web3AuthNetwork,
 			chainConfig: {
 				chainNamespace: CHAIN_NAMESPACES.EIP155,
-				chainId: chainId,
-				// https://chainlist.org/
-				rpcTarget: rpcUrl,
+				chainId: this.chains[chainId].chainId,
+        ...(customRpcUrl && { rpcUrl: customRpcUrl }),
 			},
 			uiConfig: {
-				theme: 'dark',
-				loginMethodsOrder: ['google', 'facebook'],
+				theme: theme,
+				loginMethodsOrder: loginMethods,
 			},
 		};
 
 		// https://web3auth.io/docs/sdk/web/modal/initialize#configuring-adapters
 		const modalConfig = {
-			[WALLET_ADAPTERS.TORUS_EVM]: {
-				label: 'torus',
-				showOnModal: false,
-			},
 			[WALLET_ADAPTERS.METAMASK]: {
 				label: 'metamask',
 				showOnDesktop: true,
-				showOnMobile: false,
+				showOnMobile: true,
 			},
 		};
 
@@ -70,20 +136,25 @@ class SafeSDKPlugin {
 			},
 		});
 
-		const pack = new Web3AuthModalPack(
+		this.web3AuthModalPack = new Web3AuthModalPack(
 			options,
 			[openloginAdapter],
 			modalConfig
 		);
-
-		this.safeAuthKit = await SafeAuthKit.init(pack, {
-			txServiceUrl: 'https://safe-transaction-goerli.safe.global',
-		});
 	}
+
+  async initSafeAuthKit() {
+    if (!this.selectedChainId) {
+      throw new Error('Chain ID not set');
+    }
+    
+    this.safeAuthKit = await SafeAuthKit.init(this.web3AuthModalPack, {
+			txServiceUrl: this.chains[this.selectedChainId].safeTxServiceUrl,
+		});
+  }
 
 	async signIn() {
 		const res = await this.safeAuthKit.signIn();
-		this.user = res;
 		console.log('res', res);
 		if (res.safes.length > 0) {
 			this.connectedSafeAddress = res.safes[0];
@@ -93,7 +164,6 @@ class SafeSDKPlugin {
 
 	async signOut() {
 		await this.safeAuthKit.signOut();
-		this.user = null;
 	}
 
 	getConnectedSafeAddress() {
@@ -116,8 +186,6 @@ class SafeSDKPlugin {
 	 * @returns
 	 */
 	async createTransaction(destination: string, amount: string) {
-		// Any address can be used. In this example you will use vitalik.eth
-		// const destination = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 		const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
@@ -167,6 +235,9 @@ class SafeSDKPlugin {
 		const safeAddress = this.connectedSafeAddress;
 
 		const signer = provider.getSigner();
+
+		const address = await signer.getAddress();
+
 		const ethAdapter = new EthersAdapter({
 			ethers,
 			signerOrProvider: signer || provider,
@@ -175,7 +246,7 @@ class SafeSDKPlugin {
 			ethAdapter,
 			safeAddress,
 		});
-		const txServiceUrl = 'https://safe-transaction-goerli.safe.global';
+		const txServiceUrl = this.chains[this.selectedChainId].safeTxServiceUrl;
 		const safeService = new SafeApiKit({
 			txServiceUrl,
 			ethAdapter: ethAdapter,
@@ -187,7 +258,7 @@ class SafeSDKPlugin {
 			safeAddress,
 			safeTransactionData: safeTransaction.data,
 			safeTxHash,
-			senderAddress: this.user.eoa,
+			senderAddress: address,
 			senderSignature: senderSignature.data,
 		});
 	}
@@ -211,9 +282,8 @@ class SafeSDKPlugin {
 			signerOrProvider: signer || provider,
 		});
 
-		const txServiceUrl = 'https://safe-transaction-goerli.safe.global';
 		const safeService = new SafeApiKit({
-			txServiceUrl,
+			txServiceUrl: this.chains[this.selectedChainId].safeTxServiceUrl,
 			ethAdapter: ethAdapter,
 		});
 
@@ -223,18 +293,21 @@ class SafeSDKPlugin {
 		});
 
 		const safeTransaction = await safeService.getTransaction(safeTxHash);
-		const isValidTx = await safeSDK.isValidTransaction(safeTransaction);
-		if (isValidTx) {
-			const executeTxResponse = await safeSDK.executeTransaction(
-				safeTransaction
-			);
-			const receipt =
-				executeTxResponse.transactionResponse &&
-				(await executeTxResponse.transactionResponse.wait());
-			return receipt;
-		}
 
-		return 'There is signatures missing';
+		const isValidTx = await safeSDK.isValidTransaction(safeTransaction);
+
+		if (!isValidTx) {
+      throw new Error('Transaction is not valid');
+		}
+    const executeTxResponse = await safeSDK.executeTransaction(
+      safeTransaction
+    );
+
+    const receipt =
+      executeTxResponse.transactionResponse &&
+      (await executeTxResponse.transactionResponse.wait());
+
+    return receipt;
 	}
 
 	/**
@@ -257,9 +330,8 @@ class SafeSDKPlugin {
 			signerOrProvider: signer || provider,
 		});
 
-		const txServiceUrl = 'https://safe-transaction-goerli.safe.global';
 		const safeService = new SafeApiKit({
-			txServiceUrl,
+			txServiceUrl: this.chains[this.selectedChainId].safeTxServiceUrl,
 			ethAdapter: ethAdapter,
 		});
 
@@ -270,8 +342,6 @@ class SafeSDKPlugin {
 		let signature = await safeSDK.signTransactionHash(txHash);
 		await safeService.confirmTransaction(txHash, signature.data);
 	}
-
-	rejectTransaction(txHash: string) {}
 
 	/**
 	 *
@@ -289,16 +359,15 @@ class SafeSDKPlugin {
 			signerOrProvider: signer || provider,
 		});
 
-		const txServiceUrl = 'https://safe-transaction-goerli.safe.global';
 		const safeService = new SafeApiKit({
-			txServiceUrl,
+			txServiceUrl: this.chains[this.selectedChainId].safeTxServiceUrl,
 			ethAdapter: ethAdapter,
 		});
 
 		const pendingTransactions = await safeService.getPendingTransactions(
 			safeAddress
 		);
-		console.log(pendingTransactions);
+
 		return pendingTransactions;
 	}
 
@@ -333,7 +402,6 @@ class SafeSDKPlugin {
 			},
 		});
 
-		console.log('safeAddress', safeAddress);
 		return safeAddress;
 	}
 
@@ -342,7 +410,8 @@ class SafeSDKPlugin {
 		const privateKey = await authKitProvider.request({
 			method: 'private_key',
 		});
-		console.log('privateKey', privateKey);
+
+    return privateKey;
 	}
 
 	async getAllSafes() {
@@ -364,12 +433,13 @@ class SafeSDKPlugin {
 		});
 
 		const safeService = new SafeApiKit({
-			txServiceUrl: 'https://safe-transaction-goerli.safe.global',
+			txServiceUrl: this.chains[this.selectedChainId].safeTxServiceUrl,
 			ethAdapter,
 		});
 
 		const safes: OwnerResponse = await safeService.getSafesByOwner(address);
-		console.log(safes);
+
+    console.log('safes', safes);
 
 		return safes.safes;
 	}
@@ -399,7 +469,8 @@ class SafeSDKPlugin {
 		const allTxs: AllTransactionsListResponse =
 			await safeService.getAllTransactions(safeAddress);
 
-		console.log('allTxs', allTxs);
+    console.log('allTxs', allTxs);
+
 		return allTxs;
 	}
 
@@ -420,7 +491,7 @@ class SafeSDKPlugin {
 		});
 
 		const safeService = new SafeApiKit({
-			txServiceUrl: 'https://safe-transaction-goerli.safe.global',
+			txServiceUrl: this.chains[this.selectedChainId].safeTxServiceUrl,
 			ethAdapter,
 		});
 
@@ -428,6 +499,7 @@ class SafeSDKPlugin {
 			await safeService.getTransaction(safeTxHash);
 
 		console.log('tx', tx);
+
 		return tx;
 	}
 }
