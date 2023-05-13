@@ -89,8 +89,6 @@ class SafeSDKPlugin {
 
     this.selectedChainId = chainId;
 
-    console.log('this.chains[chainId]', this.chains[chainId]);
-
     if (loginMethods.length === 0) {
       throw new Error('At least one login method must be provided');
     }
@@ -115,8 +113,6 @@ class SafeSDKPlugin {
 				loginMethodsOrder: loginMethods,
 			},
 		};
-
-    console.log('options', options);
 
 		// https://web3auth.io/docs/sdk/web/modal/initialize#configuring-adapters
 		const modalConfig = {
