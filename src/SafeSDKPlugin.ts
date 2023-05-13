@@ -76,6 +76,7 @@ class SafeSDKPlugin {
 		const res = await this.safeAuthKit.signIn();
 		if (res) {
 			this.user = res;
+			return this.user;
 		}
 	}
 
@@ -91,7 +92,7 @@ class SafeSDKPlugin {
 	) {
 		// Any address can be used. In this example you will use vitalik.eth
 		// const destination = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
-    const provider = new ethers.providers.Web3Provider(
+    	const provider = new ethers.providers.Web3Provider(
 			this.safeAuthKit.getProvider()
 		);
 
@@ -145,7 +146,11 @@ class SafeSDKPlugin {
     //   owners: [await owner.getAddress()],
     //   threshold: 1,
     // });
-  }
+  	}
+
+	getUserInfo() {
+		return this.user;
+	}
 }
 
 export default SafeSDKPlugin
