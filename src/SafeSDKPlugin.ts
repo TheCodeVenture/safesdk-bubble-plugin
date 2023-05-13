@@ -147,10 +147,6 @@ class SafeSDKPlugin {
     //   threshold: 1,
     // });
   	}
-
-	getUserInfo() {
-		return this.user;
-	}
 }
 
 export default SafeSDKPlugin
